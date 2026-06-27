@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>子供の預金管理</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons-webfont/3.31.0/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#f5f5f7;--surface:#fff;--surface-muted:#f0f0f2;--text:#1d1d1f;--text-secondary:#6e6e73;--text-muted:#aeaeb2;--border:#e5e5ea;--blue:#4A90D9;--green:#27AE60;--pink:#E84393;--danger:#e24b4a;--accent:#378ADD}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;padding:2rem;max-width:960px;margin:0 auto}
+.header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2rem}
+.header h1{font-size:22px;font-weight:500}
+.header .updated{font-size:12px;color:var(--text-muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:2rem}
+.card{background:var(--surface);border-radius:12px;border:0.5px solid var(--border);padding:1rem 1.25rem}
+.card.accent{border-left:3px solid}
+.card .label{font-size:13px;color:var(--text-secondary);margin-bottom:4px}
+.card .value{font-size:24px;font-weight:500}
+.card.total{background:var(--text);color:#fff;border:none}
+.card.total .label{color:rgba(255,255,255,0.7)}
+.card.total .value{color:#fff}
+.chart-wrap{background:var(--surface);border-radius:12px;border:0.5px solid var(--border);padding:1.25rem;margin-bottom:2rem}
+.form-wrap{background:var(--surface);border-radius:12px;border:0.5px solid var(--border);padding:1.25rem;margin-bottom:2rem}
+.form-wrap h2{font-size:16px;font-weight:500;margin-bottom:1rem}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.form-grid label{font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px}
+.form-grid input,.form-grid select{width:100%;height:36px;border:0.5px solid var(--border);border-radius:8px;padding:0 10px;font-family:inherit;font-size:14px;background:var(--surface);color:var(--text);outline:none}
+.form-grid input:focus,.form-grid select:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(74,144,217,0.15)}
+.btn-row{margin-top:1rem;text-align:right}
+.btn-submit{height:36px;padding:0 1.5rem;background:var(--text);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:500;cursor:pointer}
+.btn-submit:hover{opacity:0.85}
+.btn-submit:active{transform:scale(0.98)}
+.history h2{font-size:16px;font-weight:500;margin-bottom:1rem}
+.tabs{display:flex;gap:4px;margin-bottom:1rem}
+.tab{padding:6px 16px;border-radius:8px;border:0.5px solid var(--border);background:none;font-family:inherit;font-size:13px;cursor:pointer;color:var(--text-secondary)}
+.tab.active{background:var(--text);color:#fff;border-color:var(--text)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-weight:500;font-size:13px;color:var(--text-secondary);padding:8px 10px;border-bottom:0.5px solid var(--border)}
+td{padding:8px 10px;border-bottom:0.5px solid var(--border)}
+.type-in{color:var(--accent)}
+.type-out{color:var(--danger)}
+.btn-del{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px}
+.btn-del:hover{color:var(--danger)}
+.empty{text-align:center;padding:2rem;color:var(--text-muted);font-size:14px}
+.card .memo{width:100%;margin-top:8px;border:0.5px solid var(--border);border-radius:6px;padding:6px 8px;font-family:inherit;font-size:12px;color:var(--text-secondary);resize:vertical;min-height:36px;outline:none;background:var(--bg)}
+.card .memo:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(74,144,217,0.15)}
+.card .memo::placeholder{color:var(--text-muted)}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+@media(max-width:600px){
+body{padding:1rem}
+.header{flex-direction:column;gap:4px}
+.cards{grid-template-columns:1fr 1fr;gap:8px}
+.card .value{font-size:20px}
+.card .memo{font-size:11px}
+.chart-wrap{padding:0.75rem}
+.form-wrap{padding:1rem}
+.form-grid{grid-template-columns:1fr}
+.btn-submit{width:100%;height:44px;font-size:16px}
+.tabs{flex-wrap:wrap}
+.tab{padding:6px 12px;font-size:12px}
+table{font-size:12px;min-width:520px}
+th,td{padding:6px 6px}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>子供の預金管理</h1>
+  <span class="updated" id="updated"></span>
+</div>
+
+<div class="cards" id="cards"></div>
+
+<div class="chart-wrap">
+  <canvas id="chart" height="200"></canvas>
+</div>
+
+<div class="form-wrap">
+  <h2>入出金を登録</h2>
+  <form id="form">
+    <div class="form-grid">
+      <div><label>日付</label><input type="date" id="f-date" required></div>
+      <div><label>名前</label><select id="f-name" required><option value="">選択</option><option>凛</option><option>新</option><option>糸</option></select></div>
+      <div><label>種別</label><select id="f-type" required><option value="">選択</option><option>入金</option><option>出金</option></select></div>
+      <div><label>金額</label><input type="number" id="f-amount" min="1" required placeholder="例: 500000"></div>
+      <div><label>摘要</label><input type="text" id="f-desc" required placeholder="例: 学費"></div>
+      <div><label>備考</label><input type="text" id="f-note" placeholder="任意"></div>
+    </div>
+    <div class="btn-row"><button type="submit" class="btn-submit">登録</button></div>
+  </form>
+</div>
+
+<div class="history">
+  <h2>取引履歴</h2>
+  <div class="tabs" id="tabs"></div>
+  <div class="table-scroll"><table><thead><tr><th>日付</th><th>名前</th><th>種別</th><th style="text-align:right">金額</th><th>摘要</th><th>備考</th><th></th></tr></thead><tbody id="tbody"></tbody></table></div>
+  <div class="empty" id="empty" style="display:none">取引がありません</div>
+</div>
+
+<script>
+const STORAGE_KEY='kids-savings-transactions';
+const MEMO_KEY='kids-savings-memos';
+let memos=JSON.parse(localStorage.getItem(MEMO_KEY)||'{}');
+function saveMemos(){localStorage.setItem(MEMO_KEY,JSON.stringify(memos))}
+const CHILDREN=[{name:'凛',color:'#4A90D9'},{name:'新',color:'#27AE60'},{name:'糸',color:'#E84393'}];
+const fmt=n=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}).format(n);
+
+let transactions=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');
+let activeFilter='全員';
+let chart;
+
+function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(transactions))}
+
+function getBalance(name){
+  let income=0,expense=0;
+  for(const t of transactions){
+    if(t.name!==name)continue;
+    if(t.type==='入金')income+=t.amount;else expense+=t.amount;
+  }
+  return income-expense;
+}
+
+function renderCards(){
+  const el=document.getElementById('cards');
+  let total=0;
+  let html='';
+  for(const c of CHILDREN){
+    const bal=getBalance(c.name);
+    total+=bal;
+    html+=`<div class="card accent" style="border-left-color:${c.color}"><div class="label">${c.name}の残高</div><div class="value">${fmt(bal)}</div><textarea class="memo" data-child="${c.name}" placeholder="メモを入力...">${memos[c.name]||''}</textarea></div>`;
+  }
+  html+=`<div class="card total"><div class="label">合計残高</div><div class="value">${fmt(total)}</div></div>`;
+  el.innerHTML=html;
+  el.querySelectorAll('.memo').forEach(ta=>ta.oninput=()=>{memos[ta.dataset.child]=ta.value;saveMemos()});
+}
+
+function renderChart(){
+  const balances=CHILDREN.map(c=>getBalance(c.name));
+  const colors=CHILDREN.map(c=>c.color);
+  if(chart){chart.data.datasets[0].data=balances;chart.update();return}
+  chart=new Chart(document.getElementById('chart'),{
+    type:'bar',
+    data:{labels:CHILDREN.map(c=>c.name),datasets:[{label:'現在残高',data:balances,backgroundColor:colors,borderRadius:6,barPercentage:0.5}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>fmt(v)},grid:{color:'#e5e5ea'}},x:{grid:{display:false}}}}
+  });
+}
+
+function renderTabs(){
+  const el=document.getElementById('tabs');
+  const filters=['全員',...CHILDREN.map(c=>c.name)];
+  el.innerHTML=filters.map(f=>`<button class="tab${f===activeFilter?' active':''}" data-f="${f}">${f}</button>`).join('');
+  el.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{activeFilter=btn.dataset.f;renderTabs();renderTable()});
+}
+
+function renderTable(){
+  const tbody=document.getElementById('tbody');
+  const emptyEl=document.getElementById('empty');
+  let filtered=activeFilter==='全員'?transactions:transactions.filter(t=>t.name===activeFilter);
+  filtered=[...filtered].sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id));
+  if(!filtered.length){tbody.innerHTML='';emptyEl.style.display='';return}
+  emptyEl.style.display='none';
+  tbody.innerHTML=filtered.map(t=>`<tr>
+    <td>${t.date}</td><td>${t.name}</td>
+    <td class="${t.type==='入金'?'type-in':'type-out'}">${t.type}</td>
+    <td style="text-align:right">${fmt(t.amount)}</td>
+    <td>${t.description}</td><td>${t.note||''}</td>
+    <td><button class="btn-del" data-id="${t.id}" title="削除"><i class="ti ti-trash"></i></button></td>
+  </tr>`).join('');
+  tbody.querySelectorAll('.btn-del').forEach(btn=>btn.onclick=()=>{
+    if(!confirm('この取引を削除しますか？'))return;
+    transactions=transactions.filter(t=>t.id!==btn.dataset.id);
+    save();renderAll();
+  });
+}
+
+function renderAll(){
+  renderCards();
+  try{renderChart()}catch(e){}
+  renderTabs();renderTable();
+  document.getElementById('updated').textContent='更新: '+new Date().toLocaleString('ja-JP');
+}
+
+document.getElementById('f-date').value=new Date().toISOString().slice(0,10);
+document.getElementById('form').onsubmit=e=>{
+  e.preventDefault();
+  const t={
+    id:crypto.randomUUID(),
+    date:document.getElementById('f-date').value,
+    name:document.getElementById('f-name').value,
+    type:document.getElementById('f-type').value,
+    amount:Number(document.getElementById('f-amount').value),
+    description:document.getElementById('f-desc').value,
+    note:document.getElementById('f-note').value
+  };
+  if(!t.name||!t.type||!t.amount||t.amount<=0)return;
+  transactions.push(t);
+  save();renderAll();
+  document.getElementById('f-name').value='';
+  document.getElementById('f-type').value='';
+  document.getElementById('f-amount').value='';
+  document.getElementById('f-desc').value='';
+  document.getElementById('f-note').value='';
+};
+
+renderAll();
+</script>
+</body>
+</html>
