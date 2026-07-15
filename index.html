@@ -50,6 +50,8 @@ td{padding:8px 10px;border-bottom:0.5px solid var(--border)}
 .btn-del{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px}
 .btn-del:hover{color:var(--danger)}
 .empty{text-align:center;padding:2rem;color:var(--text-muted);font-size:14px}
+.btn-action{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 1rem;border:0.5px solid var(--border);border-radius:8px;background:var(--surface);font-family:inherit;font-size:13px;color:var(--text);cursor:pointer}
+.btn-action:hover{background:var(--surface-muted)}
 .divider{border:none;border-top:0.5px solid var(--border);margin:8px 0}
 .sub-row{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
 .sub-label{font-size:11px;color:var(--text-muted)}
@@ -114,6 +116,15 @@ th,td{padding:6px 6px}
   <div class="tabs" id="tabs"></div>
   <div class="table-scroll"><table><thead><tr><th>日付</th><th>名前</th><th>種別</th><th style="text-align:right">金額</th><th>摘要</th><th>備考</th><th></th></tr></thead><tbody id="tbody"></tbody></table></div>
   <div class="empty" id="empty" style="display:none">取引がありません</div>
+</div>
+
+<div class="form-wrap" style="margin-top:2rem">
+  <h2>データのバックアップ</h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:0.75rem">
+    <button class="btn-action" id="btn-export"><i class="ti ti-download" aria-hidden="true"></i> エクスポート（保存）</button>
+    <label class="btn-action" style="cursor:pointer"><i class="ti ti-upload" aria-hidden="true"></i> インポート（読込）<input type="file" id="file-import" accept=".json" style="display:none"></label>
+  </div>
+  <p style="font-size:12px;color:var(--text-muted);margin-top:8px">エクスポートでJSONファイルを保存→別ブラウザでインポートするとデータが移行できます</p>
 </div>
 
 <script>
@@ -266,6 +277,36 @@ document.getElementById('form').onsubmit=e=>{
   document.getElementById('f-amount').value='';
   document.getElementById('f-desc').value='';
   document.getElementById('f-note').value='';
+};
+
+// エクスポート
+document.getElementById('btn-export').onclick=()=>{
+  const data={transactions,memos,sbiBalances,exportedAt:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='子供預金データ_'+new Date().toLocaleDateString('ja-JP').replace(/\//g,'-')+'.json';
+  a.click();
+};
+
+// インポート
+document.getElementById('file-import').onchange=e=>{
+  const file=e.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!confirm('現在のデータを上書きしてインポートしますか？'))return;
+      if(data.transactions){transactions=data.transactions;save();}
+      if(data.memos){memos=data.memos;saveMemos();}
+      if(data.sbiBalances){sbiBalances=data.sbiBalances;saveSbi();}
+      renderAll();
+      alert('インポートが完了しました');
+    }catch(err){alert('ファイルの読み込みに失敗しました');}
+  };
+  reader.readAsText(file);
+  e.target.value='';
 };
 
 renderAll();
