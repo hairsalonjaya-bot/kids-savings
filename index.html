@@ -45,9 +45,13 @@ td{padding:8px 10px;border-bottom:0.5px solid var(--border)}
 .btn-del{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px}
 .btn-del:hover{color:var(--danger)}
 .empty{text-align:center;padding:2rem;color:var(--text-muted);font-size:14px}
+.divider{border:none;border-top:0.5px solid var(--border);margin:8px 0}
 .sub-row{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
 .sub-label{font-size:11px;color:var(--text-muted)}
 .sub-val{font-size:12px;color:var(--text-secondary)}
+.total-row{margin-top:6px;padding-top:6px;border-top:0.5px solid var(--border)}
+.total-label{font-size:12px;font-weight:500;color:var(--text-secondary)}
+.total-val{font-size:14px;font-weight:500;color:var(--text)}
 .sbi-input{width:100px;height:26px;border:0.5px solid var(--border);border-radius:6px;padding:0 6px;font-family:inherit;font-size:12px;color:var(--text);background:var(--bg);text-align:right;outline:none}
 .sbi-input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(74,144,217,0.15)}
 .card .memo{width:100%;margin-top:8px;border:0.5px solid var(--border);border-radius:6px;padding:6px 8px;font-family:inherit;font-size:12px;color:var(--text-secondary);resize:vertical;min-height:36px;outline:none;background:var(--bg)}
@@ -136,24 +140,30 @@ function renderCards(){
   const el=document.getElementById('cards');
   let total=0;
   let html='';
+  const SBI_CHILDREN=['凛','新','糸'];
   let grandTotal=0;
   for(const c of CHILDREN){
     const cash=getBalance(c.name);
-    const sbi=sbiBalances[c.name]||0;
+    const hasSbi=SBI_CHILDREN.includes(c.name);
+    const sbi=hasSbi?(sbiBalances[c.name]||0):0;
     const combined=cash+sbi;
     grandTotal+=combined;
-    html+=`<div class="card accent" style="border-left-color:${c.color}">
-      <div class="label">${c.name}の残高</div>
-      <div class="value">${fmt(combined)}</div>
+    const sbiSection=hasSbi?`
+      <div class="divider"></div>
       <div class="sub-row"><span class="sub-label">現金</span><span class="sub-val">${fmt(cash)}</span></div>
-      <div class="sub-row sbi-row">
+      <div class="sub-row">
         <span class="sub-label">SBI証券</span>
         <input class="sbi-input" type="number" data-child="${c.name}" value="${sbi||''}" placeholder="0" min="0">
       </div>
+      <div class="sub-row total-row"><span class="sub-label total-label">合計</span><span class="sub-val total-val">${fmt(combined)}</span></div>`:'';
+    html+=`<div class="card accent" style="border-left-color:${c.color}">
+      <div class="label">${c.name}の残高</div>
+      <div class="value">${fmt(combined)}</div>
+      ${sbiSection}
       <textarea class="memo" data-child="${c.name}" placeholder="メモを入力...">${memos[c.name]||''}</textarea>
     </div>`;
   }
-  html+=`<div class="card total"><div class="label">合計残高</div><div class="value">${fmt(grandTotal)}</div></div>`;
+  html+=`<div class="card total"><div class="label">3人合計</div><div class="value">${fmt(grandTotal)}</div></div>`;
   el.innerHTML=html;
   el.querySelectorAll('.memo').forEach(ta=>ta.oninput=()=>{memos[ta.dataset.child]=ta.value;saveMemos()});
   el.querySelectorAll('.sbi-input').forEach(inp=>inp.onchange=()=>{
