@@ -6,7 +6,6 @@
 <title>子供の預金管理</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons-webfont/3.31.0/tabler-icons.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#f5f5f7;--surface:#fff;--surface-muted:#f0f0f2;--text:#1d1d1f;--text-secondary:#6e6e73;--text-muted:#aeaeb2;--border:#e5e5ea;--blue:#4A90D9;--green:#27AE60;--pink:#E84393;--danger:#e24b4a;--accent:#378ADD}
@@ -85,7 +84,7 @@ th,td{padding:6px 6px}
 <div class="cards" id="cards"></div>
 
 <div class="chart-wrap">
-  <canvas id="chart" height="200"></canvas>
+  <div id="chart"></div>
 </div>
 
 <div class="form-wrap">
@@ -123,7 +122,6 @@ const fmt=n=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maxi
 
 let transactions=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');
 let activeFilter='全員';
-let chart;
 
 function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(transactions))}
 
@@ -175,21 +173,36 @@ function renderCards(){
 function renderChart(){
   const SBI_CHILDREN=['凛','新','糸'];
   const targets=CHILDREN.filter(c=>SBI_CHILDREN.includes(c.name));
-  const balances=targets.map(c=>getBalance(c.name)+(sbiBalances[c.name]||0));
-  const labels=targets.map(c=>c.name);
-  const colors=targets.map(c=>c.color);
-  if(chart){
-    chart.data.labels=labels;
-    chart.data.datasets[0].data=balances;
-    chart.data.datasets[0].backgroundColor=colors;
-    chart.update();
-    return;
+  const values=targets.map(c=>getBalance(c.name)+(sbiBalances[c.name]||0));
+  const max=Math.max(...values,1);
+  const W=600,H=200,PAD_L=90,PAD_B=36,PAD_T=16,PAD_R=20;
+  const chartW=W-PAD_L-PAD_R;
+  const chartH=H-PAD_B-PAD_T;
+  const barW=Math.floor(chartW/targets.length*0.45);
+  const gap=Math.floor(chartW/targets.length);
+  // y-axis ticks
+  const tickCount=4;
+  let ticks='';
+  for(let i=0;i<=tickCount;i++){
+    const v=Math.round(max/tickCount*i);
+    const y=PAD_T+chartH-Math.round(chartH*i/tickCount);
+    ticks+=`<line x1="${PAD_L-6}" y1="${y}" x2="${W-PAD_R}" y2="${y}" stroke="#e5e5ea" stroke-width="1"/>`;
+    ticks+=`<text x="${PAD_L-10}" y="${y+4}" text-anchor="end" font-size="10" fill="#aeaeb2">${v>=10000?Math.round(v/10000)+'万':v}</text>`;
   }
-  chart=new Chart(document.getElementById('chart'),{
-    type:'bar',
-    data:{labels,datasets:[{label:'現在残高（現金＋SBI）',data:balances,backgroundColor:colors,borderRadius:6,barPercentage:0.5}]},
-    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'合計: '+fmt(ctx.raw)}}},scales:{y:{ticks:{callback:v=>fmt(v)},grid:{color:'#e5e5ea'}},x:{grid:{display:false}}}}
+  // bars
+  let bars='';
+  targets.forEach((c,i)=>{
+    const bh=values[i]>0?Math.max(Math.round(chartH*values[i]/max),4):0;
+    const x=PAD_L+gap*i+Math.floor((gap-barW)/2);
+    const y=PAD_T+chartH-bh;
+    bars+=`<rect x="${x}" y="${y}" width="${barW}" height="${bh}" fill="${c.color}" rx="4"/>`;
+    bars+=`<text x="${x+barW/2}" y="${PAD_T+chartH+18}" text-anchor="middle" font-size="13" fill="#1d1d1f">${c.name}</text>`;
+    if(values[i]>0){
+      const label=values[i]>=10000?Math.round(values[i]/10000)+'万':fmt(values[i]);
+      bars+=`<text x="${x+barW/2}" y="${y-6}" text-anchor="middle" font-size="10" fill="${c.color}" font-weight="500">${label}</text>`;
+    }
   });
+  document.getElementById('chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${ticks}${bars}<line x1="${PAD_L}" y1="${PAD_T}" x2="${PAD_L}" y2="${PAD_T+chartH}" stroke="#e5e5ea" stroke-width="1"/></svg>`;
 }
 
 function renderTabs(){
@@ -221,8 +234,7 @@ function renderTable(){
 }
 
 function renderAll(){
-  renderCards();
-  try{renderChart()}catch(e){}
+  renderCards();renderChart();
   renderTabs();renderTable();
   document.getElementById('updated').textContent='更新: '+new Date().toLocaleString('ja-JP');
 }
