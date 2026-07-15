@@ -45,6 +45,11 @@ td{padding:8px 10px;border-bottom:0.5px solid var(--border)}
 .btn-del{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px}
 .btn-del:hover{color:var(--danger)}
 .empty{text-align:center;padding:2rem;color:var(--text-muted);font-size:14px}
+.sub-row{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+.sub-label{font-size:11px;color:var(--text-muted)}
+.sub-val{font-size:12px;color:var(--text-secondary)}
+.sbi-input{width:100px;height:26px;border:0.5px solid var(--border);border-radius:6px;padding:0 6px;font-family:inherit;font-size:12px;color:var(--text);background:var(--bg);text-align:right;outline:none}
+.sbi-input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(74,144,217,0.15)}
 .card .memo{width:100%;margin-top:8px;border:0.5px solid var(--border);border-radius:6px;padding:6px 8px;font-family:inherit;font-size:12px;color:var(--text-secondary);resize:vertical;min-height:36px;outline:none;background:var(--bg)}
 .card .memo:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(74,144,217,0.15)}
 .card .memo::placeholder{color:var(--text-muted)}
@@ -104,8 +109,11 @@ th,td{padding:6px 6px}
 <script>
 const STORAGE_KEY='kids-savings-transactions';
 const MEMO_KEY='kids-savings-memos';
+const SBI_KEY='kids-savings-sbi';
 let memos=JSON.parse(localStorage.getItem(MEMO_KEY)||'{}');
+let sbiBalances=JSON.parse(localStorage.getItem(SBI_KEY)||'{}');
 function saveMemos(){localStorage.setItem(MEMO_KEY,JSON.stringify(memos))}
+function saveSbi(){localStorage.setItem(SBI_KEY,JSON.stringify(sbiBalances))}
 const CHILDREN=[{name:'凛',color:'#4A90D9'},{name:'新',color:'#27AE60'},{name:'糸',color:'#E84393'},{name:'その他',color:'#888780'}];
 const fmt=n=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}).format(n);
 
@@ -128,18 +136,34 @@ function renderCards(){
   const el=document.getElementById('cards');
   let total=0;
   let html='';
+  let grandTotal=0;
   for(const c of CHILDREN){
-    const bal=getBalance(c.name);
-    total+=bal;
-    html+=`<div class="card accent" style="border-left-color:${c.color}"><div class="label">${c.name}の残高</div><div class="value">${fmt(bal)}</div><textarea class="memo" data-child="${c.name}" placeholder="メモを入力...">${memos[c.name]||''}</textarea></div>`;
+    const cash=getBalance(c.name);
+    const sbi=sbiBalances[c.name]||0;
+    const combined=cash+sbi;
+    grandTotal+=combined;
+    html+=`<div class="card accent" style="border-left-color:${c.color}">
+      <div class="label">${c.name}の残高</div>
+      <div class="value">${fmt(combined)}</div>
+      <div class="sub-row"><span class="sub-label">現金</span><span class="sub-val">${fmt(cash)}</span></div>
+      <div class="sub-row sbi-row">
+        <span class="sub-label">SBI証券</span>
+        <input class="sbi-input" type="number" data-child="${c.name}" value="${sbi||''}" placeholder="0" min="0">
+      </div>
+      <textarea class="memo" data-child="${c.name}" placeholder="メモを入力...">${memos[c.name]||''}</textarea>
+    </div>`;
   }
-  html+=`<div class="card total"><div class="label">合計残高</div><div class="value">${fmt(total)}</div></div>`;
+  html+=`<div class="card total"><div class="label">合計残高</div><div class="value">${fmt(grandTotal)}</div></div>`;
   el.innerHTML=html;
   el.querySelectorAll('.memo').forEach(ta=>ta.oninput=()=>{memos[ta.dataset.child]=ta.value;saveMemos()});
+  el.querySelectorAll('.sbi-input').forEach(inp=>inp.onchange=()=>{
+    sbiBalances[inp.dataset.child]=Number(inp.value)||0;
+    saveSbi();renderAll();
+  });
 }
 
 function renderChart(){
-  const balances=CHILDREN.map(c=>getBalance(c.name));
+  const balances=CHILDREN.map(c=>getBalance(c.name)+(sbiBalances[c.name]||0));
   const colors=CHILDREN.map(c=>c.color);
   if(chart){chart.data.datasets[0].data=balances;chart.update();return}
   chart=new Chart(document.getElementById('chart'),{
