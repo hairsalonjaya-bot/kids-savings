@@ -122,8 +122,10 @@ th,td{padding:6px 6px}
   <h2>データのバックアップ</h2>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:0.75rem">
     <button class="btn-action" id="btn-export"><i class="ti ti-download" aria-hidden="true"></i> エクスポート（保存）</button>
-    <label class="btn-action" style="cursor:pointer"><i class="ti ti-upload" aria-hidden="true"></i> インポート（読込）<input type="file" id="file-import" accept=".json" style="display:none"></label>
+    <button class="btn-action" id="btn-import-trigger"><i class="ti ti-upload" aria-hidden="true"></i> インポート（読込）</button>
+    <input type="file" id="file-import" accept=".json" style="display:none">
   </div>
+  <div id="import-status" style="font-size:13px;color:var(--text-secondary);margin-top:8px;display:none"></div>
   <p style="font-size:12px;color:var(--text-muted);margin-top:8px">エクスポートでJSONファイルを保存→別ブラウザでインポートするとデータが移行できます</p>
 </div>
 
@@ -285,28 +287,53 @@ document.getElementById('btn-export').onclick=()=>{
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download='子供預金データ_'+new Date().toLocaleDateString('ja-JP').replace(/\//g,'-')+'.json';
+  a.download='kids-savings-backup.json';
+  document.body.appendChild(a);
   a.click();
+  setTimeout(()=>document.body.removeChild(a),100);
 };
 
 // インポート
-document.getElementById('file-import').onchange=e=>{
-  const file=e.target.files[0];
+document.getElementById('btn-import-trigger').onclick=()=>{
+  document.getElementById('file-import').click();
+};
+
+document.getElementById('file-import').onchange=function(){
+  const file=this.files[0];
   if(!file)return;
+  const status=document.getElementById('import-status');
+  status.style.display='block';
+  status.textContent='読み込み中...';
   const reader=new FileReader();
-  reader.onload=ev=>{
+  reader.onload=function(ev){
     try{
       const data=JSON.parse(ev.target.result);
-      if(!confirm('現在のデータを上書きしてインポートしますか？'))return;
-      if(data.transactions){transactions=data.transactions;save();}
-      if(data.memos){memos=data.memos;saveMemos();}
-      if(data.sbiBalances){sbiBalances=data.sbiBalances;saveSbi();}
+      if(data.transactions&&Array.isArray(data.transactions)){
+        transactions=data.transactions;
+        save();
+      }
+      if(data.memos&&typeof data.memos==='object'){
+        memos=data.memos;
+        saveMemos();
+      }
+      if(data.sbiBalances&&typeof data.sbiBalances==='object'){
+        sbiBalances=data.sbiBalances;
+        saveSbi();
+      }
       renderAll();
-      alert('インポートが完了しました');
-    }catch(err){alert('ファイルの読み込みに失敗しました');}
+      status.textContent='✓ インポート完了（'+transactions.length+'件）';
+      status.style.color='var(--green)';
+    }catch(err){
+      status.textContent='✗ 読み込み失敗: '+err.message;
+      status.style.color='var(--danger)';
+    }
   };
-  reader.readAsText(file);
-  e.target.value='';
+  reader.onerror=function(){
+    status.textContent='✗ ファイルを開けませんでした';
+    status.style.color='var(--danger)';
+  };
+  reader.readAsText(file,'UTF-8');
+  this.value='';
 };
 
 renderAll();
