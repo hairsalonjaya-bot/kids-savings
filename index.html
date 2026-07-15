@@ -173,13 +173,22 @@ function renderCards(){
 }
 
 function renderChart(){
-  const balances=CHILDREN.map(c=>getBalance(c.name)+(sbiBalances[c.name]||0));
-  const colors=CHILDREN.map(c=>c.color);
-  if(chart){chart.data.datasets[0].data=balances;chart.update();return}
+  const SBI_CHILDREN=['凛','新','糸'];
+  const targets=CHILDREN.filter(c=>SBI_CHILDREN.includes(c.name));
+  const balances=targets.map(c=>getBalance(c.name)+(sbiBalances[c.name]||0));
+  const labels=targets.map(c=>c.name);
+  const colors=targets.map(c=>c.color);
+  if(chart){
+    chart.data.labels=labels;
+    chart.data.datasets[0].data=balances;
+    chart.data.datasets[0].backgroundColor=colors;
+    chart.update();
+    return;
+  }
   chart=new Chart(document.getElementById('chart'),{
     type:'bar',
-    data:{labels:CHILDREN.map(c=>c.name),datasets:[{label:'現在残高',data:balances,backgroundColor:colors,borderRadius:6,barPercentage:0.5}]},
-    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>fmt(v)},grid:{color:'#e5e5ea'}},x:{grid:{display:false}}}}
+    data:{labels,datasets:[{label:'現在残高（現金＋SBI）',data:balances,backgroundColor:colors,borderRadius:6,barPercentage:0.5}]},
+    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'合計: '+fmt(ctx.raw)}}},scales:{y:{ticks:{callback:v=>fmt(v)},grid:{color:'#e5e5ea'}},x:{grid:{display:false}}}}
   });
 }
 
