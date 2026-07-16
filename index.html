@@ -174,7 +174,7 @@ function renderCards(){
     const hasSbi=SBI_CHILDREN.includes(c.name);
     const sbi=hasSbi?(sbiBalances[c.name]||0):0;
     const combined=cash+sbi;
-    grandTotal+=combined;
+    if(c.name!=='その他')grandTotal+=combined;
     const sbiSection=hasSbi?`
       <div class="divider"></div>
       <div class="sub-row"><span class="sub-label">現金</span><span class="sub-val">${fmt(cash)}</span></div>
